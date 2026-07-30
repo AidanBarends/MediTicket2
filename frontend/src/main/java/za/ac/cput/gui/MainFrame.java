@@ -16,9 +16,7 @@ public class MainFrame extends JFrame {
 
         setLayout(new BorderLayout());
 
-        JPanel sidebar = new JPanel();
-        sidebar.setBackground(new Color(0xF1, 0xF3, 0xF5));
-        sidebar.setPreferredSize(new Dimension(220, 0));
+        SidebarPanel sidebar = new SidebarPanel();
         add(sidebar, BorderLayout.WEST);
 
         JPanel topbar = new JPanel();
