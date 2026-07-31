@@ -7,8 +7,7 @@ import java.awt.event.MouseEvent;
 
 public class NavItem extends JPanel {
 
-    private static final Color ACTIVE_BG = new Color(0x2E, 0x5B, 0xE0);
-    private static final Color ACTIVE_TEXT = Color.WHITE;
+    private static final Color ACTIVE_BG = new Color(0x1F, 0x6F, 0x6F);    private static final Color ACTIVE_TEXT = Color.WHITE;
     private static final Color INACTIVE_TEXT = new Color(0x33, 0x3B, 0x44);
     private static final Color HOVER_BG = new Color(0xE4, 0xE8, 0xEC);
 

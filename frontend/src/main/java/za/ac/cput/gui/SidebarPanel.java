@@ -1,4 +1,4 @@
-package za.ac.cput.GUI;
+package za.ac.cput.gui;
 
 import javax.swing.*;
 import java.awt.*;
