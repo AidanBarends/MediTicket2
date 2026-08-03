@@ -27,9 +27,13 @@ public class GreetingHeaderPanel extends JPanel {
         subtext.setForeground(UITheme.TEXT_MUTED);
         subtext.setAlignmentX(Component.LEFT_ALIGNMENT);
 
+        QuickActionsPanel quickActions = new QuickActionsPanel();
+        quickActions.setAlignmentX(Component.LEFT_ALIGNMENT);
+
         add(statusBadge);
         add(headline);
         add(subtext);
+        add(quickActions);
     }
 
     private static class StatusPill extends JLabel {
