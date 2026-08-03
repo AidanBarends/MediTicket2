@@ -21,7 +21,8 @@ public class PillButton extends JButton {
         setFocusPainted(false);
         setBorderPainted(false);
         setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        setPreferredSize(new Dimension(150, 44));
+        Dimension natural = super.getPreferredSize();
+        setPreferredSize(new Dimension(Math.max(natural.width + 20, 130), 44));
 
         if (bordered) {
             setBorder(BorderFactory.createLineBorder(UITheme.BORDER_LIGHT, 1, true));
