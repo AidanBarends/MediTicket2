@@ -1,7 +1,7 @@
 package za.ac.cput.service;
 
-import za.ac.cput.domain.enums.NotificationStatus;
-import za.ac.cput.domain.enums.NotificationType;
+import za.ac.cput.domain.enums.*;
+
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -12,8 +12,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import za.ac.cput.domain.Appointment;
 import za.ac.cput.domain.Notification;
 import za.ac.cput.domain.PatientTicket;
-import za.ac.cput.domain.enums.ConfirmationStatus;
-import za.ac.cput.domain.enums.UserStatus;
 import za.ac.cput.domain.user.ClinicStaff;
 import za.ac.cput.domain.user.Doctor;
 import za.ac.cput.domain.user.Patient;
@@ -96,7 +94,7 @@ public class NotificationServiceTest{
                 .setPassword("password789")
                 .setDob(LocalDate.of(1992, 3, 22))
                 .setAccountStatus(UserStatus.ACTIVE)
-                .setStaffRole("Receptionist")
+                .setStaffRole(StaffRole.NURSE)
                 .setDepartment("Front Desk")
                 .build();
 

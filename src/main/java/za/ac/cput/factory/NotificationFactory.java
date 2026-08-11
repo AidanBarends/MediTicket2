@@ -25,7 +25,8 @@ public class NotificationFactory {
                                                   Appointment appointment,
                                                   LocalDateTime notificationDate) {
 
-        if (!Helper.isValidInt(notificationId)) return null;
+        // notificationId is DB-generated (@GeneratedValue IDENTITY) — it's
+        // always 0 on creation, so it can't be validated here. Removed check.
         if (!Helper.isValidObject(notificationType)) return null;
         if (!Helper.isValidObject(notificationStatus)) return null;
         if (Helper.isNullOrEmpty(notificationMessage)) return null;
@@ -33,8 +34,6 @@ public class NotificationFactory {
         if (!Helper.isValidObject(appointment)) return null;
         if (!Helper.isValidObject(notificationDate)) return null;
 
-        // Exactly one recipient must be set - a notification must belong
-        // to a single Patient, Doctor, or ClinicStaff, never zero or many.
         int recipientCount = 0;
         if (patient != null) recipientCount++;
         if (doctor != null) recipientCount++;

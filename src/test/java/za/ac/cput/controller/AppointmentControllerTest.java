@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import za.ac.cput.domain.Appointment;
 import za.ac.cput.domain.enums.ConfirmationStatus;
+import za.ac.cput.domain.enums.StaffRole;
 import za.ac.cput.domain.enums.UserStatus;
 import za.ac.cput.domain.user.ClinicStaff;
 import za.ac.cput.domain.user.Doctor;
@@ -67,7 +68,7 @@ class AppointmentControllerTest {
                 .setPassword("password123")
                 .setDob(LocalDate.of(1990, 1, 1))
                 .setAccountStatus(UserStatus.ACTIVE)
-                .setStaffRole("Receptionist")
+                .setStaffRole(StaffRole.NURSE)
                 .setDepartment("Front Desk")
                 .build();
 

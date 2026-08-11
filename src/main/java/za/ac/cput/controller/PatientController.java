@@ -6,6 +6,7 @@ import za.ac.cput.service.PatientService;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/patients")
@@ -44,7 +45,7 @@ public class PatientController {
     }
 
     @GetMapping("/email/{email}")
-    public Patient findByEmail(@PathVariable String email) {
+    public Optional<Patient> findByEmail(@PathVariable String email) {
         return patientService.findByEmail(email);
     }
 
