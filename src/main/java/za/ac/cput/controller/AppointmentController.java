@@ -81,4 +81,34 @@ public class AppointmentController {
             @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate appointmentDate) {
         return ResponseEntity.ok(service.findByDoctorUserIdAndAppointmentDate(doctorId, appointmentDate));
     }
+
+    @GetMapping("/findByPatient/{patientId}")
+    public ResponseEntity<List<Appointment>> findByPatientUserId(@PathVariable int patientId) {
+        return ResponseEntity.ok(service.findByPatientUserId(patientId));
+    }
+
+    @PostMapping("/{appointmentId}/approve")
+    public ResponseEntity<Appointment> approve(@PathVariable int appointmentId,
+                                               @RequestParam int doctorId,
+                                               @RequestParam int staffId) {
+        Appointment approved = service.approveAppointment(appointmentId, doctorId, staffId);
+        if (approved == null) return ResponseEntity.badRequest().build();
+        return ResponseEntity.ok(approved);
+    }
+
+    @PostMapping("/{appointmentId}/reject")
+    public ResponseEntity<Appointment> reject(@PathVariable int appointmentId,
+                                              @RequestParam int staffId,
+                                              @RequestParam(required = false) String reason) {
+        Appointment rejected = service.rejectAppointment(appointmentId, staffId, reason);
+        if (rejected == null) return ResponseEntity.badRequest().build();
+        return ResponseEntity.ok(rejected);
+    }
+
+    @PostMapping("/{appointmentId}/complete")
+    public ResponseEntity<Appointment> complete(@PathVariable int appointmentId) {
+        Appointment completed = service.completeAppointment(appointmentId);
+        if (completed == null) return ResponseEntity.badRequest().build();
+        return ResponseEntity.ok(completed);
+    }
 }

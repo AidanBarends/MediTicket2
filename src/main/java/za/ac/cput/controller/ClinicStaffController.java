@@ -1,10 +1,12 @@
 package za.ac.cput.controller;
 
 import org.springframework.web.bind.annotation.*;
+import za.ac.cput.domain.enums.StaffRole;
 import za.ac.cput.domain.user.ClinicStaff;
 import za.ac.cput.service.ClinicStaffService;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/clinicstaff")
@@ -42,7 +44,7 @@ public class ClinicStaffController {
     }
 
     @GetMapping("/email/{email}")
-    public ClinicStaff findByEmail(@PathVariable String email) {
+    public Optional<ClinicStaff> findByEmail(@PathVariable String email) {
         return clinicStaffService.findByEmail(email);
     }
 
@@ -52,7 +54,7 @@ public class ClinicStaffController {
     }
 
     @GetMapping("/staffrole/{staffRole}")
-    public List<ClinicStaff> findByStaffRole(@PathVariable String staffRole) {
+    public List<ClinicStaff> findByStaffRole(@PathVariable StaffRole staffRole) {
         return clinicStaffService.findByStaffRole(staffRole);
     }
 }

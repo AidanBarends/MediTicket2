@@ -5,10 +5,7 @@ import org.junit.jupiter.api.Test;
 import za.ac.cput.domain.Appointment;
 import za.ac.cput.domain.Notification;
 import za.ac.cput.domain.PatientTicket;
-import za.ac.cput.domain.enums.ConfirmationStatus;
-import za.ac.cput.domain.enums.NotificationStatus;
-import za.ac.cput.domain.enums.NotificationType;
-import za.ac.cput.domain.enums.UserStatus;
+import za.ac.cput.domain.enums.*;
 import za.ac.cput.domain.user.ClinicStaff;
 import za.ac.cput.domain.user.Doctor;
 import za.ac.cput.domain.user.Patient;
@@ -81,7 +78,7 @@ public class NotificationFactoryTest {
                 .setPassword("password789")
                 .setDob(LocalDate.of(1992, 3, 22))
                 .setAccountStatus(UserStatus.ACTIVE)
-                .setStaffRole("Receptionist")
+                .setStaffRole(StaffRole.NURSE)
                 .setDepartment("Front Desk")
                 .build();
 
