@@ -51,6 +51,7 @@ public class SecurityConfig {
                                 "/api/auth/refresh",
                                 "/api/auth/resend-verification",
                                 "/api/auth/change-password",
+                                "/api/auth/bootstrap/admin",
                                 "/api/auth/employee/invite/verify",
                                 "/api/auth/employee/signup/**",
                                 "/api/auth/employee/request-access"

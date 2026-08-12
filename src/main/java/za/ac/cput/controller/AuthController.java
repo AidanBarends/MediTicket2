@@ -4,10 +4,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
 import za.ac.cput.domain.EmployeeAccessRequest;
 import za.ac.cput.domain.auth.RefreshToken;
 import za.ac.cput.domain.enums.RequestStatus;
+import za.ac.cput.domain.enums.StaffRole;
 import za.ac.cput.domain.enums.UserStatus;
+import za.ac.cput.domain.enums.UserType;
 import za.ac.cput.domain.user.ClinicStaff;
 import za.ac.cput.domain.user.Doctor;
 import za.ac.cput.domain.user.Patient;
@@ -18,6 +21,7 @@ import za.ac.cput.service.AuthService;
 import za.ac.cput.service.EmployeeAccessRequestService;
 import za.ac.cput.service.RefreshTokenService;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,15 +34,21 @@ public class AuthController {
     private final JwtService jwtService;
     private final EmployeeAccessRequestService employeeAccessRequestService;
 
-    public AuthController(AuthService authService,
-                          RefreshTokenService refreshTokenService,
-                          JwtService jwtService,
-                          EmployeeAccessRequestService employeeAccessRequestService) {
+    public AuthController(
+            AuthService authService,
+            RefreshTokenService refreshTokenService,
+            JwtService jwtService,
+            EmployeeAccessRequestService employeeAccessRequestService) {
+
         this.authService = authService;
         this.refreshTokenService = refreshTokenService;
         this.jwtService = jwtService;
         this.employeeAccessRequestService = employeeAccessRequestService;
     }
+
+    // ============================================================
+    // PATIENT SIGNUP
+    // ============================================================
 
     @PostMapping("/signup")
     public ResponseEntity<?> signup(@RequestBody PatientSignupRequest request) {
@@ -71,8 +81,13 @@ public class AuthController {
                 .body("Signup successful. Please check your email to verify your account.");
     }
 
+    // ============================================================
+    // ACCOUNT VERIFICATION
+    // ============================================================
+
     @GetMapping("/verify")
     public ResponseEntity<?> verify(@RequestParam String token) {
+
         boolean verified = authService.verifyAccount(token);
 
         if (!verified) {
@@ -80,12 +95,23 @@ public class AuthController {
                     .body("Invalid or expired verification link.");
         }
 
-        return ResponseEntity.ok("Account verified successfully. You can now log in.");
+        return ResponseEntity.ok(
+                "Account verified successfully. You can now log in."
+        );
     }
+
+    // ============================================================
+    // LOGIN
+    // ============================================================
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        AuthResponse authResponse = authService.logIn(request.getEmail(), request.getPassword());
+
+        AuthResponse authResponse =
+                authService.logIn(
+                        request.getEmail(),
+                        request.getPassword()
+                );
 
         if (authResponse == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -95,39 +121,72 @@ public class AuthController {
         return ResponseEntity.ok(authResponse);
     }
 
+    // ============================================================
+    // REFRESH TOKEN
+    // ============================================================
+
     @PostMapping("/refresh")
-    public ResponseEntity<?> refresh(@RequestBody RefreshRequest request) {
+    public ResponseEntity<?> refresh(
+            @RequestBody RefreshRequest request) {
 
         String oldToken = request.getRefreshToken();
 
-        Optional<RefreshToken> found = refreshTokenService.findByToken(oldToken);
+        Optional<RefreshToken> found =
+                refreshTokenService.findByToken(oldToken);
 
-        if (found.isEmpty() || !refreshTokenService.isValid(oldToken)) {
+        if (found.isEmpty()
+                || !refreshTokenService.isValid(oldToken)) {
+
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body("Refresh token expired or invalid, please log in again");
         }
 
         RefreshToken refreshToken = found.get();
 
-        String newAccessToken = jwtService.generateToken(refreshToken.getUserId(), refreshToken.getUserType().name());
+        String newAccessToken =
+                jwtService.generateToken(
+                        refreshToken.getUserId(),
+                        refreshToken.getUserType().name()
+                );
 
-        return ResponseEntity.ok(new AuthResponse(newAccessToken, oldToken));
+        return ResponseEntity.ok(
+                new AuthResponse(
+                        newAccessToken,
+                        oldToken
+                )
+        );
     }
 
+    // ============================================================
+    // RESEND PATIENT VERIFICATION
+    // ============================================================
+
     @PostMapping("/resend-verification")
-    public ResponseEntity<?> resendVerification(@RequestParam String email) {
+    public ResponseEntity<?> resendVerification(
+            @RequestParam String email) {
+
         boolean sent = authService.resendVerification(email);
 
         if (!sent) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Unable to resend verification email. Account may not exist or is already verified.");
+                    .body(
+                            "Unable to resend verification email. " +
+                                    "Account may not exist or is already verified."
+                    );
         }
 
-        return ResponseEntity.ok("Verification email resent. Please check your inbox.");
+        return ResponseEntity.ok(
+                "Verification email resent. Please check your inbox."
+        );
     }
 
+    // ============================================================
+    // CHANGE PASSWORD
+    // ============================================================
+
     @PutMapping("/change-password")
-    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest request) {
+    public ResponseEntity<?> changePassword(
+            @RequestBody ChangePasswordRequest request) {
 
         boolean changed = authService.changePassword(
                 request.getEmail(),
@@ -137,14 +196,74 @@ public class AuthController {
 
         if (!changed) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Unable to change password. Check that your email and current password are correct.");
+                    .body(
+                            "Unable to change password. " +
+                                    "Check that your email and current password are correct."
+                    );
         }
 
-        return ResponseEntity.ok("Password updated successfully.");
+        return ResponseEntity.ok(
+                "Password updated successfully."
+        );
     }
 
+    // ============================================================
+    // FIRST ADMIN BOOTSTRAP
+    // ============================================================
+    //
+    // This endpoint exists ONLY to create the first ADMIN account.
+    //
+    // It is protected by:
+    //
+    // 1. X-Bootstrap-Key header
+    // 2. Database must contain ZERO ADMIN accounts
+    //
+    // Once the first ADMIN exists, this endpoint permanently refuses
+    // to create another ADMIN.
+    //
+    // ============================================================
+
+    @PostMapping("/bootstrap/admin")
+    public ResponseEntity<?> bootstrapFirstAdmin(
+            @RequestHeader(value = "X-Bootstrap-Key", required = false)
+            String bootstrapKey,
+            @RequestBody FirstAdminBootstrapRequest request) {
+
+        ClinicStaff admin = authService.bootstrapFirstAdmin(
+                bootstrapKey,
+                request.getFirstName(),
+                request.getMiddleName(),
+                request.getLastName(),
+                request.getEmail(),
+                request.getCellPhone(),
+                request.getPassword(),
+                request.getDob(),
+                request.getDepartment()
+        );
+
+        if (admin == null) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(
+                            "First-admin bootstrap failed. " +
+                                    "The bootstrap key may be invalid, or an ADMIN account already exists."
+                    );
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(
+                        "First ADMIN account created successfully. " +
+                                "You can now log in."
+                );
+    }
+
+    // ============================================================
+    // EMPLOYEE INVITE
+    // ============================================================
+
     @PostMapping("/employee/invite")
-    public ResponseEntity<?> inviteEmployee(@RequestBody EmployeeInviteRequest request) {
+    public ResponseEntity<?> inviteEmployee(
+            @RequestBody EmployeeInviteRequest request) {
+
         boolean sent = authService.inviteEmployee(
                 request.getEmail(),
                 request.getUserType(),
@@ -153,17 +272,30 @@ public class AuthController {
 
         if (!sent) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Unable to send invite. Email may already be registered, the role is invalid, " +
-                            "or a staff role is missing/unexpected for the chosen user type.");
+                    .body(
+                            "Unable to send invite. Email may already be " +
+                                    "registered, the role is invalid, or a staff " +
+                                    "role is missing/unexpected for the chosen user type."
+                    );
         }
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body("Invitation sent. The employee should check their email to complete signup.");
+                .body(
+                        "Invitation sent. The employee should check " +
+                                "their email to complete signup."
+                );
     }
 
+    // ============================================================
+    // VERIFY EMPLOYEE INVITE
+    // ============================================================
+
     @GetMapping("/employee/invite/verify")
-    public ResponseEntity<?> verifyEmployeeInvite(@RequestParam String token) {
-        EmployeeInviteResponse invite = authService.verifyEmployeeInvite(token);
+    public ResponseEntity<?> verifyEmployeeInvite(
+            @RequestParam String token) {
+
+        EmployeeInviteResponse invite =
+                authService.verifyEmployeeInvite(token);
 
         if (invite == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -173,90 +305,253 @@ public class AuthController {
         return ResponseEntity.ok(invite);
     }
 
+    // ============================================================
+    // DOCTOR SIGNUP
+    // ============================================================
+
     @PostMapping("/employee/signup/doctor")
-    public ResponseEntity<?> signupDoctor(@RequestBody DoctorSignupRequest request) {
-        Doctor created = authService.signUpDoctor(request);
+    public ResponseEntity<?> signupDoctor(
+            @RequestBody DoctorSignupRequest request) {
+
+        Doctor created =
+                authService.signUpDoctor(request);
 
         if (created == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Signup failed. Invitation may be invalid, expired, or already used.");
-        }
-
-        return ResponseEntity.status(HttpStatus.CREATED).body("Doctor account created successfully. You can now log in.");
-    }
-
-    @PostMapping("/employee/signup/clinicstaff")
-    public ResponseEntity<?> signupClinicStaff(@RequestBody ClinicStaffSignupRequest request) {
-        ClinicStaff created = authService.signUpClinicStaff(request);
-
-        if (created == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Signup failed. Invitation may be invalid, expired, or already used.");
-        }
-
-        return ResponseEntity.status(HttpStatus.CREATED).body("Clinic staff account created successfully. You can now log in.");
-    }
-
-    // ===== NEW: self-service access request flow =====
-
-    @PostMapping("/employee/request-access")
-    public ResponseEntity<?> requestAccess(@RequestBody EmployeeAccessRequestSubmission request) {
-        boolean submitted = authService.requestEmployeeAccess(
-                request.getEmail(),
-                request.getUserType(),
-                request.getStaffRole()
-        );
-
-        if (!submitted) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Unable to submit request. Email may already be registered, a request may already " +
-                            "be pending for this email, or the role/staffRole combination is invalid " +
-                            "(self-service requests cannot request ADMIN).");
+                    .body(
+                            "Signup failed. Invitation may be invalid, " +
+                                    "expired, or already used."
+                    );
         }
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body("Request submitted. An administrator will review it shortly.");
+                .body(
+                        "Doctor account created successfully. " +
+                                "You can now log in."
+                );
     }
 
-    // ADMIN only — powers the staff onboarding page's request list.
-    // Defaults to PENDING so the common case needs no query param.
+    // ============================================================
+    // CLINIC STAFF SIGNUP
+    // ============================================================
+
+    @PostMapping("/employee/signup/clinicstaff")
+    public ResponseEntity<?> signupClinicStaff(
+            @RequestBody ClinicStaffSignupRequest request) {
+
+        ClinicStaff created =
+                authService.signUpClinicStaff(request);
+
+        if (created == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(
+                            "Signup failed. Invitation may be invalid, " +
+                                    "expired, or already used."
+                    );
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(
+                        "Clinic staff account created successfully. " +
+                                "You can now log in."
+                );
+    }
+
+    // ============================================================
+    // EMPLOYEE ACCESS REQUEST
+    // ============================================================
+
+    @PostMapping("/employee/request-access")
+    public ResponseEntity<?> requestAccess(
+            @RequestBody EmployeeAccessRequestSubmission request) {
+
+        boolean submitted =
+                authService.requestEmployeeAccess(
+                        request.getEmail(),
+                        request.getUserType(),
+                        request.getStaffRole()
+                );
+
+        if (!submitted) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(
+                            "Unable to submit request. Email may already " +
+                                    "be registered, a request may already be pending, " +
+                                    "or the role/staffRole combination is invalid " +
+                                    "(self-service requests cannot request ADMIN)."
+                    );
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(
+                        "Request submitted. An administrator will review it shortly."
+                );
+    }
+
+    // ============================================================
+    // ADMIN - LIST ACCESS REQUESTS
+    // ============================================================
+
     @GetMapping("/employee/access-requests")
     public ResponseEntity<?> listAccessRequests(
-            @RequestParam(required = false, defaultValue = "PENDING") RequestStatus status) {
+            @RequestParam(
+                    required = false,
+                    defaultValue = "PENDING"
+            )
+            RequestStatus status) {
 
-        List<EmployeeAccessRequest> requests = employeeAccessRequestService.findByStatus(status);
+        List<EmployeeAccessRequest> requests =
+                employeeAccessRequestService.findByStatus(status);
+
         return ResponseEntity.ok(requests);
     }
 
-    // ADMIN only
+    // ============================================================
+    // ADMIN - APPROVE ACCESS REQUEST
+    // ============================================================
+
     @PostMapping("/employee/access-requests/{id}/approve")
-    public ResponseEntity<?> approveAccessRequest(@PathVariable int id, Authentication authentication) {
-        int adminUserId = (Integer) authentication.getPrincipal();
-        boolean approved = authService.approveAccessRequest(id, adminUserId);
+    public ResponseEntity<?> approveAccessRequest(
+            @PathVariable int id,
+            Authentication authentication) {
+
+        int adminUserId =
+                (Integer) authentication.getPrincipal();
+
+        boolean approved =
+                authService.approveAccessRequest(
+                        id,
+                        adminUserId
+                );
 
         if (!approved) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Unable to approve. Request may not exist, may already be processed, " +
-                            "or the acting user is not a valid admin.");
+                    .body(
+                            "Unable to approve. Request may not exist, " +
+                                    "may already be processed, or the acting user " +
+                                    "is not a valid admin."
+                    );
         }
 
-        return ResponseEntity.ok("Request approved. An invitation email has been sent.");
+        return ResponseEntity.ok(
+                "Request approved. An invitation email has been sent."
+        );
     }
 
-    // ADMIN only
+    // ============================================================
+    // ADMIN - REJECT ACCESS REQUEST
+    // ============================================================
+
     @PostMapping("/employee/access-requests/{id}/reject")
-    public ResponseEntity<?> rejectAccessRequest(@PathVariable int id,
-                                                 @RequestParam(required = false) String adminNotes,
-                                                 Authentication authentication) {
-        int adminUserId = (Integer) authentication.getPrincipal();
-        boolean rejected = authService.rejectAccessRequest(id, adminUserId, adminNotes);
+    public ResponseEntity<?> rejectAccessRequest(
+            @PathVariable int id,
+            @RequestParam(required = false) String adminNotes,
+            Authentication authentication) {
+
+        int adminUserId =
+                (Integer) authentication.getPrincipal();
+
+        boolean rejected =
+                authService.rejectAccessRequest(
+                        id,
+                        adminUserId,
+                        adminNotes
+                );
 
         if (!rejected) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Unable to reject. Request may not exist, may already be processed, " +
-                            "or the acting user is not a valid admin.");
+                    .body(
+                            "Unable to reject. Request may not exist, " +
+                                    "may already be processed, or the acting user " +
+                                    "is not a valid admin."
+                    );
         }
 
-        return ResponseEntity.ok("Request rejected.");
+        return ResponseEntity.ok(
+                "Request rejected."
+        );
+    }
+
+    // ============================================================
+    // INNER DTO FOR FIRST ADMIN BOOTSTRAP
+    // ============================================================
+
+    public static class FirstAdminBootstrapRequest {
+
+        private String firstName;
+        private String middleName;
+        private String lastName;
+        private String email;
+        private String cellPhone;
+        private String password;
+        private LocalDate dob;
+        private String department;
+
+        public FirstAdminBootstrapRequest() {
+        }
+
+        public String getFirstName() {
+            return firstName;
+        }
+
+        public void setFirstName(String firstName) {
+            this.firstName = firstName;
+        }
+
+        public String getMiddleName() {
+            return middleName;
+        }
+
+        public void setMiddleName(String middleName) {
+            this.middleName = middleName;
+        }
+
+        public String getLastName() {
+            return lastName;
+        }
+
+        public void setLastName(String lastName) {
+            this.lastName = lastName;
+        }
+
+        public String getEmail() {
+            return email;
+        }
+
+        public void setEmail(String email) {
+            this.email = email;
+        }
+
+        public String getCellPhone() {
+            return cellPhone;
+        }
+
+        public void setCellPhone(String cellPhone) {
+            this.cellPhone = cellPhone;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public void setPassword(String password) {
+            this.password = password;
+        }
+
+        public LocalDate getDob() {
+            return dob;
+        }
+
+        public void setDob(LocalDate dob) {
+            this.dob = dob;
+        }
+
+        public String getDepartment() {
+            return department;
+        }
+
+        public void setDepartment(String department) {
+            this.department = department;
+        }
     }
 }
