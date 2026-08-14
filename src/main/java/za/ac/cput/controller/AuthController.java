@@ -19,6 +19,7 @@ import za.ac.cput.dto.*;
 import za.ac.cput.security.JwtService;
 import za.ac.cput.service.AuthService;
 import za.ac.cput.service.EmployeeAccessRequestService;
+import za.ac.cput.service.PasswordResetService;
 import za.ac.cput.service.RefreshTokenService;
 
 import java.time.LocalDate;
@@ -33,17 +34,20 @@ public class AuthController {
     private final RefreshTokenService refreshTokenService;
     private final JwtService jwtService;
     private final EmployeeAccessRequestService employeeAccessRequestService;
+    private final PasswordResetService passwordResetService;
 
     public AuthController(
             AuthService authService,
             RefreshTokenService refreshTokenService,
             JwtService jwtService,
-            EmployeeAccessRequestService employeeAccessRequestService) {
+            EmployeeAccessRequestService employeeAccessRequestService,
+            PasswordResetService passwordResetService) {
 
         this.authService = authService;
         this.refreshTokenService = refreshTokenService;
         this.jwtService = jwtService;
         this.employeeAccessRequestService = employeeAccessRequestService;
+        this.passwordResetService = passwordResetService;
     }
 
     // ============================================================
@@ -206,6 +210,8 @@ public class AuthController {
                 "Password updated successfully."
         );
     }
+
+
 
     // ============================================================
     // FIRST ADMIN BOOTSTRAP
@@ -389,6 +395,49 @@ public class AuthController {
     }
 
     // ============================================================
+    // FORGOT PASSWORD
+    // ============================================================
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody ForgotPasswordRequest request) {
+        passwordResetService.requestReset(request.getEmail());
+
+        // Deliberately identical response regardless of whether the email
+        // exists — prevents account enumeration via this endpoint.
+        return ResponseEntity.ok(
+                "If an account exists for this email, a password reset code has been sent."
+        );
+    }
+
+    @PostMapping("/verify-reset-code")
+    public ResponseEntity<?> verifyResetCode(@RequestBody VerifyResetCodeRequest request) {
+        String sessionToken = passwordResetService.verifyCode(request.getEmail(), request.getCode());
+
+        if (sessionToken == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Invalid or expired code.");
+        }
+
+        return ResponseEntity.ok(sessionToken);
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequest request) {
+        boolean reset = passwordResetService.resetPassword(
+                request.getEmail(),
+                request.getResetSessionToken(),
+                request.getNewPassword()
+        );
+
+        if (!reset) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Unable to reset password. The session may have expired — please request a new code.");
+        }
+
+        return ResponseEntity.ok("Password reset successfully. You can now log in.");
+    }
+
+    // ============================================================
     // ADMIN - LIST ACCESS REQUESTS
     // ============================================================
 
@@ -470,88 +519,5 @@ public class AuthController {
         return ResponseEntity.ok(
                 "Request rejected."
         );
-    }
-
-    // ============================================================
-    // INNER DTO FOR FIRST ADMIN BOOTSTRAP
-    // ============================================================
-
-    public static class FirstAdminBootstrapRequest {
-
-        private String firstName;
-        private String middleName;
-        private String lastName;
-        private String email;
-        private String cellPhone;
-        private String password;
-        private LocalDate dob;
-        private String department;
-
-        public FirstAdminBootstrapRequest() {
-        }
-
-        public String getFirstName() {
-            return firstName;
-        }
-
-        public void setFirstName(String firstName) {
-            this.firstName = firstName;
-        }
-
-        public String getMiddleName() {
-            return middleName;
-        }
-
-        public void setMiddleName(String middleName) {
-            this.middleName = middleName;
-        }
-
-        public String getLastName() {
-            return lastName;
-        }
-
-        public void setLastName(String lastName) {
-            this.lastName = lastName;
-        }
-
-        public String getEmail() {
-            return email;
-        }
-
-        public void setEmail(String email) {
-            this.email = email;
-        }
-
-        public String getCellPhone() {
-            return cellPhone;
-        }
-
-        public void setCellPhone(String cellPhone) {
-            this.cellPhone = cellPhone;
-        }
-
-        public String getPassword() {
-            return password;
-        }
-
-        public void setPassword(String password) {
-            this.password = password;
-        }
-
-        public LocalDate getDob() {
-            return dob;
-        }
-
-        public void setDob(LocalDate dob) {
-            this.dob = dob;
-        }
-
-        public String getDepartment() {
-            return department;
-        }
-
-        public void setDepartment(String department) {
-            this.department = department;
-        }
     }
 }

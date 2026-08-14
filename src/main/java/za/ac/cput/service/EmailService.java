@@ -61,4 +61,19 @@ public class EmailService implements IEmailService {
 
         mailSender.send(message);
     }
+
+    @Override
+    public void sendPasswordResetEmail(String toEmail, String code) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(toEmail);
+        message.setSubject("MediTicket Password Reset");
+        message.setText(
+                "Hello,\n\n" +
+                        "Your password reset code is:\n\n" +
+                        code + "\n\n" +
+                        "This code will expire in 10 minutes.\n\n" +
+                        "If you did not request a password reset, you can safely ignore this email."
+        );
+        mailSender.send(message);
+    }
 }

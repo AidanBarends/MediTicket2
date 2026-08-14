@@ -54,7 +54,10 @@ public class SecurityConfig {
                                 "/api/auth/bootstrap/admin",
                                 "/api/auth/employee/invite/verify",
                                 "/api/auth/employee/signup/**",
-                                "/api/auth/employee/request-access"
+                                "/api/auth/employee/request-access",
+                                "/api/auth/forgot-password",
+                                "/api/auth/verify-reset-code",
+                                "/api/auth/reset-password"
                         ).permitAll()
 
                         .anyRequest().authenticated()
