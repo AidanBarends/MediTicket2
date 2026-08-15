@@ -105,10 +105,4 @@ public class AppointmentController {
         return ResponseEntity.ok(rejected);
     }
 
-    @PostMapping("/{appointmentId}/complete")
-    public ResponseEntity<Appointment> complete(@PathVariable int appointmentId) {
-        Appointment completed = service.completeAppointment(appointmentId);
-        if (completed == null) return ResponseEntity.badRequest().build();
-        return ResponseEntity.ok(completed);
-    }
 }

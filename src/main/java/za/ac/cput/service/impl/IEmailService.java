@@ -9,4 +9,6 @@ public interface IEmailService {
     void sendVerificationEmail(String toEmail, String firstName, String token);
 
     void sendEmployeeInviteEmail(String toEmail, UserType userType, String token);
+
+    void sendPasswordResetEmail(String toEmail, String code);
 }
