@@ -170,21 +170,6 @@ public class AppointmentService implements IAppointmentService {
         return rejected;
     }
 
-    @Override
-    @Transactional
-    public Appointment completeAppointment(int appointmentId) {
-        Appointment existing = read(appointmentId);
-        if (existing == null) return null;
-        if (existing.getConfirmationStatus() != ConfirmationStatus.CONFIRMED) return null;
-
-        Appointment completed = new Appointment.Builder()
-                .copy(existing)
-                .setConfirmationStatus(ConfirmationStatus.COMPLETED)
-                .build();
-
-        return repository.save(completed);
-    }
-
     // ===== Private notification helpers =====
 
     private void notifyAppointmentConfirmed(Patient patient, Doctor doctor, PatientTicket ticket, Appointment appointment) {
