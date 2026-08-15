@@ -82,6 +82,10 @@ public class AuthService implements IAuthService {
             return null;
         }
 
+        if (patientService.findByEmail(patient.getEmail()).isPresent()) {
+            return null;
+        }
+
         Patient inactivePatient =
                 new Patient.Builder()
                         .copy(patient)
