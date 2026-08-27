@@ -6,7 +6,7 @@ import za.ac.cput.domain.enums.UserType;
 // so it does NOT extend IService<T, ID>. Just defines the actions this service performs.
 public interface IEmailService {
 
-    void sendVerificationEmail(String toEmail, String firstName, String token);
+    void sendVerificationEmail(String toEmail, String firstName, String token, UserType userType);
 
     void sendEmployeeInviteEmail(String toEmail, UserType userType, String token);
 

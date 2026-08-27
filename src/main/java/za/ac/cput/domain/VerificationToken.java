@@ -109,14 +109,17 @@ public class VerificationToken {
             return this;
         }
 
-        //  Auto-generates a UUID token and sets 24hr expiry
-        // Auto-generates a 6-digit numeric code and sets 24hr expiry. Was a
-// UUID (for a clickable email link) — switched to a short code so it
-// can be typed into the app directly, matching the password-reset flow.
+        //  Patient verification is a clickable email link, so it needs a
+        //  UUID (long, not meant to be typed). Doctor verification mirrors
+        //  the invite-code UX doctors already use elsewhere in signup, so
+        //  it gets a short 6-digit code instead. Any other/future user
+        //  type defaults to the UUID form, being the safer default.
         public Builder generateFor(int userId, UserType userType) {
             this.userId = userId;
             this.userType = userType;
-            this.token = String.valueOf(100000 + new java.security.SecureRandom().nextInt(900000));
+            this.token = userType == UserType.DOCTOR
+                    ? String.valueOf(100000 + new java.security.SecureRandom().nextInt(900000))
+                    : UUID.randomUUID().toString();
             this.expiryDate = LocalDateTime.now().plusHours(24);
             return this;
         }

@@ -25,17 +25,34 @@ public class EmailService implements IEmailService {
     }
 
     @Override
-    public void sendVerificationEmail(String toEmail, String firstName, String token) {
+    public void sendVerificationEmail(String toEmail, String firstName, String token, UserType userType) {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(toEmail);
         message.setSubject("Verify your Mediticket account");
-        message.setText(
-                "Hi " + firstName + ",\n\n" +
-                        "Thanks for signing up to Mediticket. Your verification code is:\n\n" +
-                        token + "\n\n" +
-                        "Enter this code in the app to activate your account. This code will expire in 24 hours.\n\n" +
-                        "If you did not create this account, please ignore this email."
-        );
+
+        if (userType == UserType.DOCTOR) {
+            // Doctor gets a short code, matching the invite-code UX already
+            // used elsewhere in employee signup — typed into the app rather
+            // than clicked.
+            message.setText(
+                    "Hi " + firstName + ",\n\n" +
+                            "Thanks for completing your MediTicket doctor signup. Your verification code is:\n\n" +
+                            token + "\n\n" +
+                            "Enter this code in the app to activate your account. This code will expire in 24 hours.\n\n" +
+                            "If you did not create this account, please ignore this email."
+            );
+        } else {
+            // Patient gets a clickable link — the token here is a UUID, long
+            // enough that typing it in would be impractical.
+            String verificationLink = verificationBaseUrl + "?token=" + token;
+            message.setText(
+                    "Hi " + firstName + ",\n\n" +
+                            "Thanks for signing up to Mediticket. Please verify your email by clicking the link below:\n\n" +
+                            verificationLink + "\n\n" +
+                            "This link will expire in 24 hours.\n\n" +
+                            "If you did not create this account, please ignore this email."
+            );
+        }
 
         mailSender.send(message);
     }

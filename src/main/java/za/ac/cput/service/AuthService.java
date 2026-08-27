@@ -114,7 +114,8 @@ public class AuthService implements IAuthService {
             emailService.sendVerificationEmail(
                     savedPatient.getEmail(),
                     savedPatient.getName().getFirstName(),
-                    token.getToken()
+                    token.getToken(),
+                    savedPatient.getUserType()
             );
         } catch (Exception e) {
             // The account and verification token are already saved at this
@@ -134,7 +135,7 @@ public class AuthService implements IAuthService {
     }
 
     // ============================================================
-    // PATIENT ACCOUNT VERIFICATION
+    // ACCOUNT VERIFICATION (patient email link or doctor email code)
     // ============================================================
 
     @Override
@@ -151,16 +152,35 @@ public class AuthService implements IAuthService {
             return false;
         }
 
-        if (verificationToken.get().getUserType()
-                != UserType.PATIENT) {
+        UserType userType = verificationToken.get().getUserType();
+        int userId = verificationToken.get().getUserId();
+
+        boolean activated;
+        if (userType == UserType.PATIENT) {
+            activated = activatePatient(userId);
+        } else if (userType == UserType.DOCTOR) {
+            activated = activateDoctor(userId);
+        } else {
+            // CLINIC_STAFF accounts go through the employee-invite flow
+            // instead, which doesn't issue a VerificationToken at all —
+            // reaching this branch would mean an unexpected token, so
+            // fail closed rather than silently activating something.
             return false;
         }
 
-        Patient patient =
-                patientService.read(
-                        verificationToken.get().getUserId()
-                );
+        if (!activated) {
+            return false;
+        }
 
+        verificationTokenService.delete(
+                verificationToken.get().getTokenId()
+        );
+
+        return true;
+    }
+
+    private boolean activatePatient(int userId) {
+        Patient patient = patientService.read(userId);
         if (patient == null) {
             return false;
         }
@@ -172,11 +192,22 @@ public class AuthService implements IAuthService {
                         .build();
 
         patientService.update(activatedPatient);
+        return true;
+    }
 
-        verificationTokenService.delete(
-                verificationToken.get().getTokenId()
-        );
+    private boolean activateDoctor(int userId) {
+        Doctor doctor = doctorService.read(userId);
+        if (doctor == null) {
+            return false;
+        }
 
+        Doctor activatedDoctor =
+                new Doctor.Builder()
+                        .copy(doctor)
+                        .setAccountStatus(UserStatus.ACTIVE)
+                        .build();
+
+        doctorService.update(activatedDoctor);
         return true;
     }
 
@@ -447,7 +478,7 @@ public class AuthService implements IAuthService {
     }
 
     // ============================================================
-    // RESEND VERIFICATION
+    // RESEND VERIFICATION (patient link or doctor code)
     // ============================================================
 
     @Override
@@ -456,30 +487,56 @@ public class AuthService implements IAuthService {
         Optional<Patient> patientOpt =
                 patientService.findByEmail(email);
 
-        if (patientOpt.isEmpty()) {
-            return false;
+        if (patientOpt.isPresent()) {
+            Patient patient = patientOpt.get();
+
+            if (patient.getAccountStatus() == UserStatus.ACTIVE) {
+                return false;
+            }
+
+            VerificationToken token =
+                    verificationTokenService.generateAndSaveToken(
+                            patient.getUserId(),
+                            patient.getUserType()
+                    );
+
+            emailService.sendVerificationEmail(
+                    patient.getEmail(),
+                    patient.getName().getFirstName(),
+                    token.getToken(),
+                    patient.getUserType()
+            );
+
+            return true;
         }
 
-        Patient patient = patientOpt.get();
+        Optional<Doctor> doctorOpt =
+                doctorService.findByEmail(email);
 
-        if (patient.getAccountStatus()
-                == UserStatus.ACTIVE) {
-            return false;
+        if (doctorOpt.isPresent()) {
+            Doctor doctor = doctorOpt.get();
+
+            if (doctor.getAccountStatus() == UserStatus.ACTIVE) {
+                return false;
+            }
+
+            VerificationToken token =
+                    verificationTokenService.generateAndSaveToken(
+                            doctor.getUserId(),
+                            doctor.getUserType()
+                    );
+
+            emailService.sendVerificationEmail(
+                    doctor.getEmail(),
+                    doctor.getName().getFirstName(),
+                    token.getToken(),
+                    doctor.getUserType()
+            );
+
+            return true;
         }
 
-        VerificationToken token =
-                verificationTokenService.generateAndSaveToken(
-                        patient.getUserId(),
-                        patient.getUserType()
-                );
-
-        emailService.sendVerificationEmail(
-                patient.getEmail(),
-                patient.getName().getFirstName(),
-                token.getToken()
-        );
-
-        return true;
+        return false;
     }
 
     // ============================================================
@@ -695,10 +752,40 @@ public class AuthService implements IAuthService {
                         .setLicenseNumber(
                                 request.getLicenseNumber()
                         )
-                        .setAccountStatus(UserStatus.ACTIVE)
+                        .setAccountStatus(UserStatus.INACTIVE)
                         .build();
 
-        return doctorService.create(doctor);
+        Doctor savedDoctor = doctorService.create(doctor);
+
+        if (savedDoctor == null) {
+            return null;
+        }
+
+        // The invite token already proved the email was authorized by an
+        // admin, but not that the doctor themself controls the inbox at
+        // signup time — so a separate verification code is still emailed
+        // here, same as patient signup, just delivered as a typed code
+        // instead of a clickable link (see VerificationToken#generateFor).
+        VerificationToken token =
+                verificationTokenService.generateAndSaveToken(
+                        savedDoctor.getUserId(),
+                        savedDoctor.getUserType()
+                );
+
+        try {
+            emailService.sendVerificationEmail(
+                    savedDoctor.getEmail(),
+                    savedDoctor.getName().getFirstName(),
+                    token.getToken(),
+                    savedDoctor.getUserType()
+            );
+        } catch (Exception e) {
+            logger.warn("Doctor signup succeeded for {} but verification email failed to send: {}",
+                    savedDoctor.getEmail(), e.getMessage());
+            logger.warn("Manual verification code (enter in-app): {}", token.getToken());
+        }
+
+        return savedDoctor;
     }
 
     // ============================================================
