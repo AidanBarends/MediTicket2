@@ -35,17 +35,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String authHeader = request.getHeader("Authorization");
 
-        // TEMPORARY DEBUGGING
-        System.out.println(">>> SECURITY REQUEST: "
-                + request.getMethod() + " "
-                + request.getRequestURI());
-
-        System.out.println(">>> AUTH HEADER PRESENT: "
-                + (authHeader != null));
-
         // No token, or not a Bearer token
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            System.out.println(">>> NO BEARER TOKEN");
             filterChain.doFilter(request, response);
             return;
         }
@@ -53,8 +44,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String token = authHeader.substring(7);
 
         if (jwtService.isTokenValid(token)) {
-
-            System.out.println(">>> JWT IS VALID");
 
             int userId = jwtService.extractUserId(token);
             String userType = jwtService.extractUserType(token);
@@ -74,15 +63,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             );
 
             SecurityContextHolder.getContext().setAuthentication(authToken);
-
-            System.out.println(">>> AUTHENTICATION CREATED: "
-                    + authToken);
-        } else {
-            System.out.println(">>> JWT IS INVALID");
         }
-
-        System.out.println(">>> BEFORE FILTER CHAIN AUTHENTICATION: "
-                + SecurityContextHolder.getContext().getAuthentication());
 
         filterChain.doFilter(request, response);
     }

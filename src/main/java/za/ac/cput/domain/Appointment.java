@@ -154,15 +154,17 @@ public class Appointment {
             return this;
         }
 
+        // Uses getters, not fields: when appointment is a lazy Hibernate proxy its own
+        // fields are empty and only the getters reach the real data.
         public Builder copy(Appointment appointment) {
-            this.appointmentId = appointment.appointmentId;
-            this.appointmentDate = appointment.appointmentDate;
-            this.appointmentTime = appointment.appointmentTime;
-            this.confirmationStatus = appointment.confirmationStatus;
-            this.patient = appointment.patient;
-            this.doctor = appointment.doctor;
-            this.staff = appointment.staff;
-            this.reason = appointment.reason;
+            this.appointmentId = appointment.getAppointmentId();
+            this.appointmentDate = appointment.getAppointmentDate();
+            this.appointmentTime = appointment.getAppointmentTime();
+            this.confirmationStatus = appointment.getConfirmationStatus();
+            this.patient = appointment.getPatient();
+            this.doctor = appointment.getDoctor();
+            this.staff = appointment.getStaff();
+            this.reason = appointment.getReason();
             return this;
         }
 

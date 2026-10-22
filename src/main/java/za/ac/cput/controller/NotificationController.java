@@ -111,33 +111,11 @@ public class NotificationController {
 
     @PutMapping("/markread/{id}")
     public ResponseEntity<Notification> markAsRead(@PathVariable int id) {
-
-        // TEMPORARY DEBUGGING
-        System.out.println(">>> MARKREAD CONTROLLER REACHED, ID = " + id);
-
-        Notification notification = notificationService.read(id);
-
-        if (notification == null) {
-            System.out.println(">>> MARKREAD: NOTIFICATION NOT FOUND");
+        // Single-column update — keeps every other field (stage, email flag) as it is.
+        if (!notificationService.markAsRead(id)) {
             return ResponseEntity.notFound().build();
         }
-
-        Notification updated = new Notification.Builder()
-                .setNotificationId(notification.getNotificationId())
-                .setNotificationStatus(NotificationStatus.READ)
-                .setNotificationType(notification.getNotificationType())
-                .setNotificationMessage(notification.getNotificationMessage())
-                .setNotificationDate(notification.getNotificationDate())
-                .setPatient(notification.getPatient())
-                .setDoctor(notification.getDoctor())
-                .setClinicStaff(notification.getClinicStaff())
-                .setTicket(notification.getTicket())
-                .setAppointment(notification.getAppointment())
-                .build();
-
-        System.out.println(">>> MARKREAD: ATTEMPTING DATABASE UPDATE");
-
-        return ResponseEntity.ok(notificationService.update(updated));
+        return ResponseEntity.ok(notificationService.read(id));
     }
 
     @GetMapping("/doctor/{doctorId}")

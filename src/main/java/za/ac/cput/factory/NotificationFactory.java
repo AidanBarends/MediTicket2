@@ -30,7 +30,8 @@ public class NotificationFactory {
         if (!Helper.isValidObject(notificationType)) return null;
         if (!Helper.isValidObject(notificationStatus)) return null;
         if (Helper.isNullOrEmpty(notificationMessage)) return null;
-        if (!Helper.isValidObject(ticket)) return null;
+        // ticket is optional: a booking request or a rejection happens before
+        // any ticket exists, so only the appointment is required.
         if (!Helper.isValidObject(appointment)) return null;
         if (!Helper.isValidObject(notificationDate)) return null;
 

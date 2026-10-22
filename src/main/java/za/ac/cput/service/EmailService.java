@@ -2,10 +2,14 @@ package za.ac.cput.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.mail.SimpleMailMessage;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import za.ac.cput.domain.enums.UserType;
+import za.ac.cput.repository.NotificationRepository;
 import za.ac.cput.service.impl.IEmailService;
 
 @Service
@@ -13,6 +17,12 @@ public class EmailService implements IEmailService {
 
     @Autowired
     private final JavaMailSender mailSender;
+
+    private static final Logger logger = LoggerFactory.getLogger(EmailService.class);
+
+    // Used only to flag a notification as emailed once the send succeeds.
+    @Autowired
+    private NotificationRepository notificationRepository;
 
     @Value("${app.verification.base-url}")
     private String verificationBaseUrl;
@@ -90,5 +100,30 @@ public class EmailService implements IEmailService {
                         "If you did not request a password reset, you can safely ignore this email."
         );
         mailSender.send(message);
+    }
+
+    // NEW — email copy of an in-app notification. Runs on a background thread
+    // (@Async, enabled in MediTicket02Application) so the HTTP request that
+    // triggered it returns immediately instead of waiting 2-5 s for SMTP.
+    // A failed send is logged and never breaks the action that caused it.
+    @Async
+    public void sendNotificationEmail(int notificationId, String toEmail, String firstName,
+                                      String subject, String body) {
+        if (toEmail == null || toEmail.isBlank()) return;
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setTo(toEmail);
+            message.setSubject("MediTicket: " + subject);
+            message.setText(
+                    "Hi " + (firstName != null ? firstName : "there") + ",\n\n" +
+                            body + "\n\n" +
+                            "You can see the details in the MediTicket app under Notifications.\n\n" +
+                            "MediTicket Clinic"
+            );
+            mailSender.send(message);
+            notificationRepository.markEmailSent(notificationId);
+        } catch (Exception e) {
+            logger.warn("Notification email to {} failed: {}", toEmail, e.getMessage());
+        }
     }
 }

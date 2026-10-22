@@ -208,12 +208,14 @@ public class NotificationFactoryTest {
     }
 
     @Test
-    void testCreateNotification_nullTicket_returnsNull() {
+    void testCreateNotification_nullTicket_isAllowed() {
+        // Booking and rejection notifications are sent before a ticket exists.
         Notification n = NotificationFactory.createNotification(
                 1, NotificationType.EMAIL, NotificationStatus.PENDING,
                 "Message", patient, null, null, null, appointment, notificationDate
         );
-        assertNull(n);
+        assertNotNull(n);
+        assertNull(n.getTicket());
     }
 
     @Test

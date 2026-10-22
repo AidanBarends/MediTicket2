@@ -27,7 +27,9 @@ public class ClinicStaffService implements IClinicStaffService {
 
     @Override
     public ClinicStaff read(Integer id) {
-        return clinicStaffRepository.findById(id).get();
+        // orElse(null), not get(): callers such as approveAppointment() check
+        // for null, but get() threw and turned a bad id into a 500 error.
+        return clinicStaffRepository.findById(id).orElse(null);
     }
 
     @Override

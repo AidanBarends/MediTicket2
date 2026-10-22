@@ -12,11 +12,13 @@ package za.ac.cput.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import za.ac.cput.domain.Appointment;
 import za.ac.cput.domain.Payment;
 import za.ac.cput.domain.PatientTicket;
 import za.ac.cput.domain.enums.PaymentMethod;
 import za.ac.cput.domain.enums.PaymentStatus;
 import za.ac.cput.domain.enums.StatusType;
+import za.ac.cput.repository.AppointmentRepository;
 import za.ac.cput.repository.PatientTicketRepository;
 import za.ac.cput.repository.PaymentRepository;
 import za.ac.cput.service.impl.IPaymentService;
@@ -38,10 +40,26 @@ public class PaymentService implements IPaymentService {
     @Autowired
     private PatientTicketRepository patientTicketRepository;
 
+    // Used to reload the full appointment (with its patient) for
+    // notifications — the request body only carries the appointment's id.
+    @Autowired
+    private AppointmentRepository appointmentRepository;
+
+    @Autowired
+    private NotificationService notificationService;
+
     @Override
     public Payment create(Payment payment) {
         if (payment == null) return null;
-        return repository.save(payment);
+        Payment saved = repository.save(payment);
+
+        String method = saved.getPaymentMethod() != null
+                ? " by " + saved.getPaymentMethod().name().replace('_', ' ')
+                : "";
+        notifyPatient(saved, "A payment of R" + saved.getPaymentAmount() + " is due" + method
+                + ". You can pay it from your Payments page.", "PAYMENT_DUE", "Payment due");
+
+        return saved;
     }
 
     @Override
@@ -91,5 +109,22 @@ public class PaymentService implements IPaymentService {
 
         ticket.addStatus(StatusType.CLOSED, "Closed automatically — payment received");
         patientTicketRepository.save(ticket);
+
+        // Inside the "not already closed" branch, so it is sent once only.
+        notifyPatient(payment, "Payment of R" + payment.getPaymentAmount()
+                + " received. Your ticket has been closed. Thank you.", "TICKET_CLOSED", "Payment received");
+    }
+
+    private void notifyPatient(Payment payment, String message, String stage, String emailSubject) {
+        if (payment.getAppointment() == null) return;
+
+        Appointment appointment = appointmentRepository
+                .findById(payment.getAppointment().getAppointmentId())
+                .orElse(null);
+        if (appointment == null || appointment.getPatient() == null) return;
+
+        PatientTicket ticket = patientTicketRepository.findByAppointment(appointment);
+        notificationService.notifyPatient(appointment.getPatient(), message, stage,
+                ticket, appointment, emailSubject);
     }
 }

@@ -1,250 +1,191 @@
-# MediTicket2
+# MediTicket2 — Backend
 
 ## Project Overview
-MediTicket2 is a healthcare management system developed using Java, Spring Boot, Maven, and Domain-Driven Design (DDD) principles.
+
+MediTicket2 is a healthcare management REST API built with **Java 22**, **Spring Boot 4.1**, and **MySQL 8**, following Domain-Driven Design (DDD) principles.
 
 The system manages:
-* Patients
-* Doctors
-* Clinic Staff
+
+* Patients, Doctors, Clinic Staff
 * Appointments
-* Patient Tickets
-* Ticket Status Tracking
+* Patient Tickets and Ticket Status Tracking
 * Payments
 * Notifications
-
-The project follows a layered architecture consisting of:
-* Domain Layer
-* Factory Layer
-* Repository Layer
-* Service Layer
-* Controller Layer
-* Test Layer
-
----
-
-## UML Class Diagram
-![MediTicket2 UML Class Diagram](MediTicket2.png)
+* Authentication (JWT + email flows)
 
 ---
 
 ## Technology Stack
-* Java 21
-* Spring Boot 4.1.0
-* Maven
-* JPA / Hibernate
-* MySQL 8
-* Spring Security + JWT (jjwt)
-* Spring Mail (Gmail SMTP)
-* JUnit 5
-* Mockito
-* GitHub
-* Railway (deployment + hosting)
-* IntelliJ IDEA
+
+| Technology | Version / Notes |
+|---|---|
+| Java | 22 |
+| Spring Boot | 4.1.0 |
+| Maven | 3.9+ |
+| JPA / Hibernate | Schema auto-managed (`ddl-auto=update`) |
+| MySQL | 8.x |
+| Spring Security | Stateless JWT auth |
+| jjwt | JWT token generation and validation |
+| Spring Mail | Gmail SMTP for verification and invite emails |
+| springboot-dotenv | `.env` file loaded into Spring environment |
+| JUnit 5 + Mockito | Unit and integration tests |
 
 ---
 
-## Backend Implementation Status
+## Running Locally
 
-### ✅ Core Domain & Persistence
-All entities, factories, repositories, and services listed below are implemented and fully wired to a MySQL database via Spring Data JPA:
-* Patient, Doctor, ClinicStaff, User (base class)
-* Appointment
-* PatientTicket, TicketStatus
-* Payment
-* Notification
-* EmployeeAccessRequest
-* RefreshToken, VerificationToken, PasswordResetRequest
+### Prerequisites
 
-Schema is auto-managed via Hibernate (`spring.jpa.hibernate.ddl-auto=update`), including all foreign key constraints and unique constraints (e.g. unique email per user type, unique license number for doctors).
+- Java 22 JDK
+- MySQL 8 running locally with a `mediticket_db` schema
+- `.env` file in the project root (see below)
 
-### ✅ Authentication & Security
-Full JWT-based authentication system implemented, including:
-* Patient self-signup with email verification
-* Employee (Doctor / Clinic Staff) invite-based signup flow
-* Login issuing JWT access + refresh tokens
-* Refresh token rotation endpoint
-* Change password / forgot password / reset password (email-based reset codes)
-* First-admin bootstrap endpoint, protected by a secret key and a one-time-only guard (refuses to run again once an ADMIN exists)
-* Employee access request workflow (self-service request → admin approval/rejection)
-* Custom `JwtAuthFilter` — stateless, header-based (`Authorization: Bearer <token>`), sets Spring Security context directly from validated JWT claims (userId, userType, staffRole)
-* Role-based endpoint protection via `SecurityConfig` (`hasRole("ADMIN")` for sensitive employee-management endpoints, `permitAll()` for pre-account auth flows, `authenticated()` for everything else)
-* Passwords hashed with BCrypt
+### Start the backend
 
-### ✅ Email Integration
-Gmail SMTP integration for:
-* Account verification emails (patients)
-* Employee invitation emails
-* Password reset codes
+```powershell
+.\mvnw.cmd spring-boot:run "-Dmaven.test.skip=true" "-Dserver.port=8080"
+```
 
-### ✅ Configuration & Environment
-* All secrets and environment-specific values (DB credentials, JWT secret, mail credentials, bootstrap admin key, base URLs) externalized via environment variables
-* Local development uses a `.env` file, loaded via Spring Boot's native `spring.config.import=optional:file:.env[.properties]`
-* `.env` is git-ignored — no secrets committed to the repository
+Wait for:
+```
+Started MediTicket02Application in X seconds
+```
 
-### ✅ Deployment
-* Backend deployed and running live on **Railway**
-* MySQL database provisioned on Railway, linked to the app service via variable references
-* Public app URL: `https://mediticket2-production.up.railway.app`
-* Verification and invite email links configured to point to the live Railway domain (not localhost)
+> `-Dmaven.test.skip=true` skips a test file with a missing test dependency that would otherwise block compilation.  
+> `-Dserver.port=8080` overrides any system `PORT` environment variable that could otherwise cause a random port assignment.
 
-### ✅ Desktop Client Integration
-* Java Swing desktop frontend (FlatLaf + MigLayout) connects to the backend via a shared `BaseApiClient`
-* Client's API base URL is configurable via system property (`-Dapi.base.url=...`), defaulting to the live Railway backend
-* Supports GET / POST / PUT / PATCH / DELETE, automatic JWT attachment to requests, and Jackson-based JSON (de)serialization with Java 8 time support
+### `.env` file
 
-### 🔧 Database Management
-* Live production MySQL database accessible for inspection/management via MySQL Workbench, tunneled securely through the Railway CLI (`railway connect MySQL --tunnel-only`) — no public database exposure required
+All secrets are loaded from a `.env` file at the project root (git-ignored). Required variables:
+
+```
+PORT=8080
+DB_URL=jdbc:mysql://localhost:3306/mediticket_db
+DB_USERNAME=your_db_user
+DB_PASSWORD=your_db_password
+JWT_SECRET=your_jwt_secret
+JWT_EXPIRATION=86400000
+MAIL_USERNAME=your_gmail@gmail.com
+MAIL_PASSWORD=your_app_password
+BOOTSTRAP_ADMIN_KEY=your_bootstrap_key
+BASE_URL=http://localhost:8080
+```
+
+### First-time admin bootstrap
+
+If the database is empty, create the first admin account:
+
+```
+POST http://localhost:8080/api/auth/bootstrap/admin
+Header: X-Bootstrap-Key: <BOOTSTRAP_ADMIN_KEY>
+Body:
+{
+  "firstName": "Admin",
+  "lastName": "User",
+  "email": "admin@mediticket.com",
+  "cellPhone": "0800000000",
+  "password": "YourPassword123",
+  "dob": "1990-01-01",
+  "department": "Administration"
+}
+```
+
+This endpoint is one-time only — it refuses to run if an ADMIN already exists.
 
 ---
 
-## Project Structure
-```text
-src
-└── main
-    └── java
-        └── za.ac.cput
-            ├── config
-            ├── controller
-            ├── domain
-            │   ├── auth
-            │   ├── enums
-            │   ├── user
-            │   └── valueObject
-            ├── dto
-            ├── factory
-            ├── repository
-            ├── security
-            ├── service
-            │   └── impl
-            └── util
+## Architecture
+
+The project follows a layered DDD structure:
+
+```
+src/main/java/za/ac/cput/
+├── config/           Spring Security, CORS, email config
+├── controller/       REST controllers (one per domain entity)
+├── domain/
+│   ├── auth/         Auth domain objects (tokens, requests)
+│   ├── enums/        Shared enumerations
+│   ├── user/         Patient, Doctor, ClinicStaff, User base class
+│   └── valueObject/  Name, Address, ContactInfo, etc.
+├── dto/              Request/response DTOs
+├── factory/          Builders for domain objects
+├── repository/       Spring Data JPA repositories
+├── security/         JwtAuthFilter, JwtUtil, SecurityConfig
+├── service/
+│   └── impl/         Service implementations
+└── util/             Shared utilities
 ```
 
 ---
 
-## Team Members and Entity Allocation
-| Team Member            | Student Number | Entity                            |
-| ---------------------- | -------------- | --------------------------------- |
-| Abdullahi Raage Farah  | 230971091      | Payment, TicketStatus             |
-| Aidan Barends          | 230155639      | Patient                           |
-| Jaden Clayton Abrahams | 222206721      | Doctor                            |
-| Joshua Peter Bonzet    | 221312536      | Appointment                       |
-| Joshua Reid Adams      | 230317693      | PatientTicket, User               |
-| Matthew Barron         | 230398863      | ClinicStaff                       |
-| Raul Jaaim Everts      | 230270564      | Notification                      |
+## Authentication & Security
+
+- **Stateless JWT** — `JwtAuthFilter` validates tokens and sets the Spring Security context before every request
+- **Role-based access** — `ADMIN`-only routes protected in `SecurityConfig`; all other authenticated routes require a valid JWT
+- **Patient self-signup** with email verification
+- **Employee invite flow** — admin invites Doctor/Clinic Staff by email; they set their password via the invite link
+- **Password management** — change password, forgot password, email-based reset codes
+- **BCrypt** password hashing
 
 ---
 
-## Branch Naming Convention
-Each team member will work on their own branch.
+## Domain & Entities
 
-**Format**
-```text
-INITIALS-StudentNumber
-```
+| Entity | Description |
+|---|---|
+| `Patient` | Self-registered patients |
+| `Doctor` | Invited medical practitioners |
+| `ClinicStaff` | Admin and Nurse staff roles |
+| `Appointment` | Scheduled patient-doctor appointments |
+| `PatientTicket` | Consultation tickets linked to appointments |
+| `TicketStatus` | Status progression for tickets (OPEN → IN_PROGRESS → RESOLVED) |
+| `Payment` | Payment records linked to appointments |
+| `Notification` | System notifications sent to users |
+| `EmployeeAccessRequest` | Self-service access requests from employees |
+| `RefreshToken` | Persistent refresh token records |
+| `VerificationToken` | Email verification tokens |
+| `PasswordResetRequest` | Password reset tokens |
 
-**Branches**
-```text
-ARF-230971091
-AB-230155639
-JCA-222206721
-JPB-221312536
-JRA-230317693
-MB-230398863
-RJE-230270564
-```
+---
+
+## Team Members
+
+| Team Member            | Student Number | Entity(ies)                     |
+|------------------------|----------------|---------------------------------|
+| Joshua Reid Adams      | 230317693      | PatientTicket, User (Team Lead) |
+| Abdullahi Raage Farah  | 230971091      | Payment, TicketStatus           |
+| Aidan Barends          | 230155639      | Patient                         |
+| Jaden Clayton Abrahams | 222206721      | Doctor                          |
+| Joshua Peter Bonzet    | 221312536      | Appointment                     |
+| Matthew Barron         | 230398863      | ClinicStaff                     |
+| Raul Jaaim Everts      | 230270564      | Notification                    |
 
 ---
 
 ## Development Workflow
 
-### 1. Pull the Latest Code
 ```bash
-git checkout main
-git pull origin main
-```
+# 1. Pull latest
+git checkout main && git pull origin main
 
-### 2. Switch to Your Branch
-```bash
-git checkout <branch-name>
-```
+# 2. Switch to your branch
+git checkout <your-branch>
 
-### 3. Complete Your Assigned Tasks
-Implement the required repository, service, controller and tests.
+# 3. Implement your changes
 
-### 4. Commit Changes
-```bash
+# 4. Commit and push
 git add .
-git commit -m "Completed assigned implementation"
+git commit -m "feat: describe your change"
+git push origin <your-branch>
+
+# 5. Open a Pull Request to main
 ```
 
-### 5. Push Changes
-```bash
-git push origin <branch-name>
-```
-
-### 6. Create a Pull Request
-Submit a Pull Request from your branch to `main`.
-
-### 7. Await Review
-The Team Lead will review and merge approved pull requests.
+Branch format: `INITIALS-StudentNumber` (e.g. `ARF-230971091`)
 
 ---
 
-## Deliverables Per Entity
-Each member is responsible for:
+## Related
 
-### Repository Layer
-* Repository Interface
-
-### Service Layer
-* Service Interface
-* Service Implementation
-
-### Controller Layer
-* REST Controller
-
-### Testing
-* Factory Test
-* Service Test
-* Controller Test
-
----
-
-## Testing Frameworks
-The project uses:
-* JUnit 5
-* Mockito
-* Spring Boot Test
-
-All implementations must include appropriate test classes.
-
----
-
-## GitHub Milestone
-
-### Domain Milestone
-**Due Date:** 21 June 2026
-
-All assigned tasks and pull requests must be completed and merged before the milestone deadline.
-
----
-
-## Team Lead Responsibilities
-* Maintain repository structure
-* Review pull requests
-* Merge approved code
-* Create and manage milestones
-* Create and assign issues
-* Ensure code quality standards are followed
-
----
-
-## Contributors
-* Joshua Reid Adams (Team Lead)
-* Abdullahi Raage Farah
-* Aidan Barends
-* Jaden Clayton Abrahams
-* Joshua Peter Bonzet
-* Matthew Barron
-* Raul Jaaim Everts
+- **Frontend (Desktop App):** [MediTicketApp](https://github.com/JoshBlack25/MediTicketApp)
+- **Full launch guide:** `../docs/LAUNCH.md`

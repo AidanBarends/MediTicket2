@@ -45,6 +45,16 @@ public class Notification {
 
     private LocalDateTime notificationDate;
 
+    // NEW — snapshot of the stage this notification is about, recorded at
+    // creation so an old notification keeps its meaning after the ticket moves
+    // on. Plain VARCHAR (not an enum column) so ddl-auto=update can add it to
+    // existing databases without a manual ALTER.
+    @Column(length = 40)
+    private String relatedStatus;
+
+    // NEW — true once the notification was also delivered by email.
+    private Boolean emailSent;
+
     protected Notification() {
         // Required by JPA
     }
@@ -55,6 +65,8 @@ public class Notification {
         this.notificationStatus = builder.notificationStatus;
         this.notificationMessage = builder.notificationMessage;
         this.notificationDate = builder.notificationDate;
+        this.relatedStatus = builder.relatedStatus;
+        this.emailSent = builder.emailSent;
         this.appointment = builder.appointment;
         this.patient = builder.patient;
         this.doctor = builder.doctor;
@@ -96,6 +108,15 @@ public class Notification {
 
     public Appointment getAppointment() {
         return appointment;
+    }
+
+    public String getRelatedStatus() {
+        return relatedStatus;
+    }
+
+    // Boolean (not boolean) so rows created before this column existed read as null.
+    public boolean isEmailSent() {
+        return Boolean.TRUE.equals(emailSent);
     }
 
     public LocalDateTime getNotificationDate() {
@@ -141,6 +162,8 @@ public class Notification {
         private Appointment appointment;
 
         private LocalDateTime notificationDate;
+        private String relatedStatus;
+        private Boolean emailSent;
 
         public Builder setNotificationId(int notificationId) {
             this.notificationId = notificationId;
@@ -187,6 +210,18 @@ public class Notification {
             return this;
         }
 
+        // Stage of the appointment/ticket/payment this notification is about,
+        // recorded when it is created (e.g. TICKET_OPEN, PAYMENT_DUE).
+        public Builder setRelatedStatus(String relatedStatus) {
+            this.relatedStatus = relatedStatus;
+            return this;
+        }
+
+        public Builder setEmailSent(Boolean emailSent) {
+            this.emailSent = emailSent;
+            return this;
+        }
+
         public Builder setNotificationDate(LocalDateTime notificationDate) {
             this.notificationDate = notificationDate;
             return this;
@@ -203,6 +238,8 @@ public class Notification {
             this.ticket = notification.ticket;
             this.appointment = notification.appointment;
             this.notificationDate = notification.notificationDate;
+            this.relatedStatus = notification.relatedStatus;
+            this.emailSent = notification.emailSent;
             return this;
         }
 
